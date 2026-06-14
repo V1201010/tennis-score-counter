@@ -746,6 +746,11 @@ if ('serviceWorker' in navigator) {
     if (pulling && startY !== null) {
       const dy = (e.changedTouches[0].clientY - startY);
       if (dy >= PULL_THRESHOLD) {
+        if (!document.getElementById('setup').classList.contains('hidden')) {
+          // Pulling to refresh on the setup screen starts a clean slate
+          localStorage.removeItem(STORAGE_KEY);
+          localStorage.removeItem(SETUP_KEY);
+        }
         location.reload();
       }
     }
