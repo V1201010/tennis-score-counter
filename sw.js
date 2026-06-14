@@ -1,4 +1,4 @@
-const CACHE_NAME = 'tennis-score-v8';
+const CACHE_NAME = 'tennis-score-v9';
 const ASSETS = ['./index.html', './manifest.json', './icon.svg'];
 
 self.addEventListener('install', (event) => {
