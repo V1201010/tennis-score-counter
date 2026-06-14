@@ -1,0 +1,693 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, user-scalable=no">
+<meta name="theme-color" content="#1a472a">
+<title>Счёт тенниса</title>
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="icon.svg">
+<link rel="icon" href="icon.svg">
+<style>
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; user-select: none; }
+  html, body { margin: 0; padding: 0; height: 100%; overflow: hidden; font-family: -apple-system, Helvetica, Arial, sans-serif; background: #0d2818; }
+
+  .screen { height: 100vh; height: 100dvh; }
+  .hidden { display: none !important; }
+
+  /* ---------- Setup screen ---------- */
+  #setup {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: #0d2818;
+    padding: 20px;
+  }
+  .setup-box {
+    width: 100%;
+    max-width: 360px;
+    color: #fff;
+  }
+  .setup-box h1 {
+    text-align: center;
+    font-size: 1.5rem;
+    margin: 0 0 24px;
+  }
+  .mode-select {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 24px;
+  }
+  .mode-btn {
+    flex: 1;
+    padding: 14px 8px;
+    border-radius: 12px;
+    border: 2px solid rgba(255,255,255,0.2);
+    background: #16331f;
+    color: #cfe8d8;
+    font-size: 1rem;
+    font-weight: 600;
+  }
+  .mode-btn.active {
+    border-color: #d7ff3f;
+    background: #1f4a2c;
+    color: #d7ff3f;
+  }
+  .setup-box label {
+    display: block;
+    font-size: 0.8rem;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    opacity: 0.6;
+    margin: 16px 0 6px;
+  }
+  .names input {
+    width: 100%;
+    padding: 12px 14px;
+    border-radius: 10px;
+    border: 1px solid rgba(255,255,255,0.2);
+    background: #16331f;
+    color: #fff;
+    font-size: 1rem;
+    margin-bottom: 8px;
+  }
+  .names input::placeholder { color: rgba(255,255,255,0.35); }
+  .checkbox-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-top: 20px;
+    font-size: 0.95rem;
+    color: #cfe8d8;
+  }
+  .checkbox-row input {
+    width: 20px;
+    height: 20px;
+    accent-color: #d7ff3f;
+  }
+
+  #startBtn {
+    width: 100%;
+    margin-top: 24px;
+    padding: 16px;
+    border: none;
+    border-radius: 999px;
+    background: #d7ff3f;
+    color: #16331f;
+    font-size: 1.1rem;
+    font-weight: 700;
+  }
+
+  /* ---------- Score screen ---------- */
+  #app {
+    display: flex;
+    flex-direction: column;
+  }
+  @media (orientation: landscape) {
+    #app { flex-direction: row; }
+    .player.pA { border-bottom: none; border-right: 3px solid #0d2818; }
+    .points { font-size: 7rem; }
+  }
+
+  .player {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+    color: #fff;
+    transition: background 0.15s;
+    min-width: 0;
+    min-height: 0;
+    padding: 8px;
+    text-align: center;
+  }
+  .player.pA { background: #1a472a; border-bottom: 3px solid #0d2818; }
+  .player.pB { background: #245c38; }
+  .player:active { filter: brightness(1.15); }
+
+  .name {
+    font-size: 1.1rem;
+    opacity: 0.75;
+    margin-bottom: 4px;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    line-height: 1.3;
+  }
+  .points {
+    font-size: 5.5rem;
+    font-weight: 700;
+    line-height: 1;
+    min-height: 1.1em;
+  }
+  .games {
+    font-size: 1.6rem;
+    font-weight: 600;
+    margin-top: 6px;
+    opacity: 0.85;
+  }
+  .sets {
+    font-size: 1rem;
+    opacity: 0.6;
+    margin-top: 2px;
+    letter-spacing: 0.2em;
+  }
+  .controls {
+    position: fixed;
+    top: 10px;
+    right: 10px;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 6px;
+    z-index: 15;
+  }
+  .controls button {
+    background: rgba(16,32,22,0.85);
+    color: #cfe8d8;
+    border: 1px solid rgba(255,255,255,0.15);
+    border-radius: 999px;
+    padding: 7px 14px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.4);
+  }
+  .controls button:active { background: #1e3326; }
+
+  /* ---------- Scoreboard (broadcast style) ---------- */
+  .scoreboard {
+    position: fixed;
+    bottom: 10px;
+    left: 10px;
+    z-index: 15;
+    pointer-events: none;
+    background: rgba(0,0,0,0.55);
+    border-radius: 10px;
+    padding: 6px 10px;
+    color: #fff;
+    backdrop-filter: blur(2px);
+  }
+  .scoreboard table { border-collapse: collapse; }
+  .scoreboard td {
+    padding: 3px 8px;
+    text-align: center;
+    font-size: 0.95rem;
+    white-space: nowrap;
+  }
+  .scoreboard td.name {
+    text-align: left;
+    font-weight: 600;
+    max-width: 38vw;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    padding-right: 10px;
+  }
+  .scoreboard td.set-score { opacity: 0.7; }
+  .scoreboard td.cur-game { font-weight: 700; }
+  .scoreboard td.cur-points {
+    font-weight: 700;
+    color: #d7ff3f;
+    border-left: 1px solid rgba(255,255,255,0.2);
+    padding-left: 10px;
+  }
+  .scoreboard .serve-cell { width: 10px; padding: 0; }
+  .scoreboard .serve-dot {
+    display: inline-block;
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: #d7ff3f;
+    opacity: 0;
+  }
+  .scoreboard .serve-dot.on { opacity: 1; }
+
+  .swap-btn {
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    z-index: 15;
+    width: 46px;
+    height: 46px;
+    border-radius: 50%;
+    background: rgba(16,32,22,0.85);
+    color: #d7ff3f;
+    border: 1px solid rgba(255,255,255,0.15);
+    font-size: 1.4rem;
+    line-height: 1;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.4);
+  }
+  .swap-btn:active { background: #1e3326; }
+  @media (orientation: portrait) {
+    .swap-btn .icon { display: inline-block; transform: rotate(90deg); }
+  }
+
+  .overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.75);
+    display: none;
+    align-items: center;
+    justify-content: center;
+    z-index: 20;
+  }
+  .overlay.show { display: flex; }
+  .overlay-box {
+    background: #16331f;
+    color: #fff;
+    border-radius: 16px;
+    padding: 32px 28px;
+    text-align: center;
+    max-width: 320px;
+  }
+  .overlay-box h2 { margin: 0 0 8px; font-size: 1.6rem; }
+  .overlay-box p { margin: 0 0 20px; opacity: 0.8; }
+  .overlay-box button {
+    background: #d7ff3f;
+    color: #16331f;
+    border: none;
+    border-radius: 999px;
+    padding: 12px 28px;
+    font-size: 1rem;
+    font-weight: 700;
+  }
+
+  .badge {
+    font-size: 0.95rem;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    color: #d7ff3f;
+    margin-top: 4px;
+    min-height: 1.2em;
+  }
+</style>
+</head>
+<body>
+
+<div id="setup" class="screen">
+  <div class="setup-box">
+    <h1>Счёт тенниса</h1>
+    <div class="mode-select">
+      <button class="mode-btn active" data-mode="singles">Одиночная 1×1</button>
+      <button class="mode-btn" data-mode="doubles">Парная 2×2</button>
+    </div>
+    <div class="names">
+      <label>Сторона A</label>
+      <input id="nameA1" placeholder="Игрок 1">
+      <input id="nameA2" placeholder="Игрок 2" class="doubles-only hidden">
+
+      <label>Сторона B</label>
+      <input id="nameB1" placeholder="Игрок 3">
+      <input id="nameB2" placeholder="Игрок 4" class="doubles-only hidden">
+    </div>
+    <label>Формат матча</label>
+    <div class="mode-select">
+      <button class="mode-btn sets-btn" data-sets="1">1 сет</button>
+      <button class="mode-btn sets-btn active" data-sets="2">До 2 побед</button>
+      <button class="mode-btn sets-btn" data-sets="3">До 3 побед</button>
+    </div>
+
+    <label class="checkbox-row">
+      <input type="checkbox" id="noChangeovers">
+      <span>Без переходов (поля статичны)</span>
+    </label>
+
+    <button id="startBtn">Начать матч</button>
+  </div>
+</div>
+
+<div id="app" class="screen hidden">
+  <div class="player pA" id="pA">
+    <div class="name" id="nameDisplayA">Игрок 1</div>
+    <div class="points" id="pointsA">0</div>
+    <div class="badge" id="badgeA">&nbsp;</div>
+    <div class="games" id="gamesA">Геймы: 0</div>
+    <div class="sets" id="setsA"></div>
+  </div>
+
+  <div class="player pB" id="pB">
+    <div class="name" id="nameDisplayB">Игрок 2</div>
+    <div class="points" id="pointsB">0</div>
+    <div class="badge" id="badgeB">&nbsp;</div>
+    <div class="games" id="gamesB">Геймы: 0</div>
+    <div class="sets" id="setsB"></div>
+  </div>
+
+  <div class="controls">
+    <button id="setupBtn">Новая игра</button>
+    <button id="resetBtn">Начать заново</button>
+    <button id="undoBtn">Отмена хода</button>
+  </div>
+
+  <button id="swapBtn" class="swap-btn" aria-label="Поменять стороны"><span class="icon">⇄</span></button>
+
+  <div class="scoreboard">
+    <table><tbody id="scoreboardBody"></tbody></table>
+  </div>
+</div>
+
+<div class="overlay" id="overlay">
+  <div class="overlay-box">
+    <h2 id="winnerText">Победа!</h2>
+    <p id="winnerScore"></p>
+    <button id="newMatchBtn">Новый матч</button>
+  </div>
+</div>
+
+<script>
+const POINT_NAMES = ['0', '15', '30', '40'];
+const STORAGE_KEY = 'tennisScoreState';
+const SETUP_KEY = 'tennisSetup';
+
+function freshState(setup) {
+  return {
+    setup: setup,
+    points: [0, 0],
+    games: [0, 0],
+    sets: [],          // array of [gA, gB]
+    tiebreak: false,
+    tiebreakPoints: [0, 0],
+    server: 0,         // 0 = side A, 1 = side B
+    matchOver: false,
+    winner: null,
+    manualSwap: false,
+    history: []
+  };
+}
+
+let state = loadState();
+let selectedMode = 'singles';
+let selectedSets = 2;
+
+function loadState() {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    return raw ? JSON.parse(raw) : null;
+  } catch (e) { return null; }
+}
+
+function saveState() {
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+}
+
+function snapshot() {
+  return JSON.parse(JSON.stringify({
+    points: state.points,
+    games: state.games,
+    sets: state.sets,
+    tiebreak: state.tiebreak,
+    tiebreakPoints: state.tiebreakPoints,
+    server: state.server,
+    matchOver: state.matchOver,
+    winner: state.winner
+  }));
+}
+
+function pushHistory() {
+  state.history.push(snapshot());
+  if (state.history.length > 200) state.history.shift();
+}
+
+function setsWon(side) {
+  return state.sets.filter(s => s[side] > s[1 - side]).length;
+}
+
+function finishSet(winner) {
+  state.sets.push([state.games[0], state.games[1]]);
+  state.games = [0, 0];
+  state.points = [0, 0];
+  state.tiebreak = false;
+  state.tiebreakPoints = [0, 0];
+  if (setsWon(winner) >= (state.setup.setsToWin || 2)) {
+    state.matchOver = true;
+    state.winner = winner;
+  }
+}
+
+function addPoint(side) {
+  if (state.matchOver) return;
+  pushHistory();
+  const other = 1 - side;
+
+  if (state.tiebreak) {
+    state.tiebreakPoints[side]++;
+    const tp = state.tiebreakPoints;
+    if (tp[side] >= 7 && tp[side] - tp[other] >= 2) {
+      state.games[side]++;
+      finishSet(side);
+    }
+    state.server = 1 - state.server;
+  } else {
+    state.points[side]++;
+    const p = state.points;
+    if (p[side] >= 4 && p[side] - p[other] >= 2) {
+      state.games[side]++;
+      state.points = [0, 0];
+
+      const g = state.games;
+      if (g[side] >= 6 && g[side] - g[other] >= 2) {
+        finishSet(side);
+      } else if (g[side] === 7) {
+        finishSet(side);
+      } else if (g[0] === 6 && g[1] === 6) {
+        state.tiebreak = true;
+        state.tiebreakPoints = [0, 0];
+      }
+      state.server = 1 - state.server;
+    }
+  }
+
+  saveState();
+  render();
+}
+
+function undo() {
+  if (state.history.length === 0) return;
+  const prev = state.history.pop();
+  Object.assign(state, prev);
+  saveState();
+  render();
+}
+
+function resetMatch() {
+  state = freshState(state.setup);
+  saveState();
+  render();
+}
+
+function tiebreakServer() {
+  const played = state.tiebreakPoints[0] + state.tiebreakPoints[1];
+  const flip = Math.floor((played + 1) / 2) % 2;
+  return flip === 0 ? state.server : 1 - state.server;
+}
+
+function pointLabel(side) {
+  const other = 1 - side;
+  if (state.tiebreak) {
+    return String(state.tiebreakPoints[side]);
+  }
+  const p = state.points;
+  if (p[side] >= 3 && p[other] >= 3) {
+    if (p[side] === p[other]) return '40';
+    return p[side] > p[other] ? 'AD' : '40';
+  }
+  return POINT_NAMES[Math.min(p[side], 3)];
+}
+
+function badgeLabel(side) {
+  const other = 1 - side;
+  const p = state.points;
+  if (!state.tiebreak && p[side] >= 3 && p[other] >= 3) {
+    if (p[side] === p[other]) return 'РОВНО';
+    if (p[side] > p[other]) return 'ПРЕИМУЩЕСТВО';
+  }
+  if (state.tiebreak) return 'ТАЙ-БРЕЙК';
+  return '';
+}
+
+function sidesSwapped() {
+  if (state.setup.noChangeovers) return false;
+  // In real tennis, players change ends after the 1st, 3rd, 5th... game of each set.
+  // That produces the pattern: game1=normal, games2-3=swapped, games4-5=normal, games6-7=swapped...
+  const totalGames = state.sets.reduce((sum, s) => sum + s[0] + s[1], 0) + state.games[0] + state.games[1];
+  return Math.floor((totalGames + 1) / 2) % 2 === 1;
+}
+
+// Maps a physical court position (0 = pA element, 1 = pB element) to a scoring side (0/1)
+function physicalToScoring(physicalSide) {
+  const swapped = sidesSwapped() !== !!state.manualSwap; // XOR
+  return swapped ? 1 - physicalSide : physicalSide;
+}
+
+function sideName(side) {
+  const names = state.setup.names[side].filter(n => n.trim().length > 0);
+  if (names.length === 0) return side === 0 ? 'Игрок 1' : 'Игрок 2';
+  return names.join(' / ');
+}
+
+function escapeHtml(str) {
+  const div = document.createElement('div');
+  div.textContent = str;
+  return div.innerHTML;
+}
+
+function buildScoreboard() {
+  const server = state.tiebreak ? tiebreakServer() : state.server;
+  let html = '';
+  for (let side = 0; side < 2; side++) {
+    html += '<tr>';
+    html += `<td class="serve-cell"><span class="serve-dot ${server === side ? 'on' : ''}"></span></td>`;
+    html += `<td class="name">${escapeHtml(sideName(side))}</td>`;
+    state.sets.forEach(s => {
+      html += `<td class="set-score">${s[side]}</td>`;
+    });
+    html += `<td class="cur-game">${state.games[side]}</td>`;
+    html += `<td class="cur-points">${pointLabel(side)}</td>`;
+    html += '</tr>';
+  }
+  document.getElementById('scoreboardBody').innerHTML = html;
+}
+
+function render() {
+  const ids = { 0: 'A', 1: 'B' };
+  for (let physical = 0; physical < 2; physical++) {
+    const suf = ids[physical];
+    const side = physicalToScoring(physical);
+
+    document.getElementById('nameDisplay' + suf).textContent = sideName(side);
+    document.getElementById('points' + suf).textContent = pointLabel(side);
+    document.getElementById('badge' + suf).textContent = badgeLabel(side) || ' ';
+    document.getElementById('games' + suf).textContent = 'Геймы: ' + state.games[side];
+
+    const setsStr = state.sets.map(s => s[side]).join('  ');
+    document.getElementById('sets' + suf).textContent = setsStr;
+  }
+
+  buildScoreboard();
+
+  if (state.matchOver) {
+    const w = state.winner;
+    document.getElementById('winnerText').textContent = sideName(w) + ' победил!';
+    const scoreStr = state.sets.map(s => s[0] + '-' + s[1]).join(', ');
+    document.getElementById('winnerScore').textContent = 'Счёт по сетам: ' + scoreStr;
+    document.getElementById('overlay').classList.add('show');
+  } else {
+    document.getElementById('overlay').classList.remove('show');
+  }
+
+  document.getElementById('undoBtn').disabled = state.history.length === 0;
+}
+
+/* ---------- Setup screen ---------- */
+function showSetup() {
+  document.getElementById('app').classList.add('hidden');
+  document.getElementById('setup').classList.remove('hidden');
+
+  if (state && state.setup) {
+    selectedMode = state.setup.mode;
+    document.getElementById('nameA1').value = state.setup.names[0][0] || '';
+    document.getElementById('nameA2').value = (state.setup.names[0][1] || '');
+    document.getElementById('nameB1').value = state.setup.names[1][0] || '';
+    document.getElementById('nameB2').value = (state.setup.names[1][1] || '');
+    document.getElementById('noChangeovers').checked = !!state.setup.noChangeovers;
+    selectedSets = state.setup.setsToWin || 2;
+  }
+  updateModeUI();
+  updateSetsUI();
+}
+
+function updateModeUI() {
+  document.querySelectorAll('.mode-btn[data-mode]').forEach(btn => {
+    btn.classList.toggle('active', btn.dataset.mode === selectedMode);
+  });
+  document.querySelectorAll('.doubles-only').forEach(el => {
+    el.classList.toggle('hidden', selectedMode !== 'doubles');
+  });
+}
+
+function updateSetsUI() {
+  document.querySelectorAll('.sets-btn').forEach(btn => {
+    btn.classList.toggle('active', Number(btn.dataset.sets) === selectedSets);
+  });
+}
+
+document.querySelectorAll('.mode-btn[data-mode]').forEach(btn => {
+  btn.addEventListener('click', () => {
+    selectedMode = btn.dataset.mode;
+    updateModeUI();
+  });
+});
+
+document.querySelectorAll('.sets-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    selectedSets = Number(btn.dataset.sets);
+    updateSetsUI();
+  });
+});
+
+document.getElementById('startBtn').addEventListener('click', () => {
+  const setup = {
+    mode: selectedMode,
+    names: {
+      0: selectedMode === 'doubles'
+        ? [document.getElementById('nameA1').value, document.getElementById('nameA2').value]
+        : [document.getElementById('nameA1').value],
+      1: selectedMode === 'doubles'
+        ? [document.getElementById('nameB1').value, document.getElementById('nameB2').value]
+        : [document.getElementById('nameB1').value]
+    },
+    noChangeovers: document.getElementById('noChangeovers').checked,
+    setsToWin: selectedSets
+  };
+  state = freshState(setup);
+  saveState();
+  localStorage.setItem(SETUP_KEY, JSON.stringify(setup));
+
+  document.getElementById('setup').classList.add('hidden');
+  document.getElementById('app').classList.remove('hidden');
+  render();
+});
+
+/* ---------- Score screen events ---------- */
+document.getElementById('pA').addEventListener('click', () => addPoint(physicalToScoring(0)));
+document.getElementById('pB').addEventListener('click', () => addPoint(physicalToScoring(1)));
+document.getElementById('undoBtn').addEventListener('click', (e) => { e.stopPropagation(); undo(); });
+document.getElementById('resetBtn').addEventListener('click', (e) => {
+  e.stopPropagation();
+  if (confirm('Начать матч заново с тем же составом? Текущий счёт будет сброшен.')) resetMatch();
+});
+document.getElementById('setupBtn').addEventListener('click', (e) => {
+  e.stopPropagation();
+  if (confirm('Перейти к настройке состава? Текущий счёт будет сброшен.')) {
+    showSetup();
+  }
+});
+document.getElementById('newMatchBtn').addEventListener('click', (e) => {
+  e.stopPropagation();
+  resetMatch();
+});
+document.getElementById('swapBtn').addEventListener('click', (e) => {
+  e.stopPropagation();
+  state.manualSwap = !state.manualSwap;
+  saveState();
+  render();
+});
+
+/* ---------- Init ---------- */
+if (state && state.setup) {
+  document.getElementById('setup').classList.add('hidden');
+  document.getElementById('app').classList.remove('hidden');
+  render();
+} else {
+  showSetup();
+}
+
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('sw.js').catch(() => {});
+  });
+}
+</script>
+</body>
+</html>
